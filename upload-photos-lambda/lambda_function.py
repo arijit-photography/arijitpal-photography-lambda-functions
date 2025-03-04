@@ -1,61 +1,80 @@
 import json
 import boto3
-from boto3.dynamodb.conditions import Key
-from decimal import Decimal
+import time
 
 # AWS Clients
+s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
 
-# Set DynamoDB Table Name
+# Set Bucket Name & DynamoDB Table
+BUCKET_NAME = "arijitpal-photography-s3"
 DYNAMO_TABLE_NAME = "arijitpal-photography-datastore"
 
 
-# ✅ Helper Function to Convert Decimal to Int/Float
-def convert_decimal(obj):
-    if isinstance(obj, Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)  # Convert to int if whole number
-    if isinstance(obj, list):
-        return [convert_decimal(i) for i in obj]
-    if isinstance(obj, dict):
-        return {k: convert_decimal(v) for k, v in obj.items()}
-    return obj
-
-
-# ✅ Lambda Handler
+# Lambda Handler
 def lambda_handler(event, context):
     try:
-        # ✅ Extract genre from query parameters
-        genre = event.get("queryStringParameters", {}).get("genre", "")
-
-        if not genre:
+        # ✅ Handle preflight (OPTIONS) requests
+        if "httpMethod" in event and event["httpMethod"] == "OPTIONS":
             return {
-                "statusCode": 400,
+                "statusCode": 200,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET",
+                    "Access-Control-Allow-Methods": "OPTIONS, POST",
                     "Access-Control-Allow-Headers": "Content-Type"
                 },
-                "body": json.dumps({"error": "Missing genre parameter"})
+                "body": json.dumps({"message": "CORS preflight successful"})
             }
 
-        # ✅ Query DynamoDB for all photos in the specified genre
-        table = dynamodb.Table(DYNAMO_TABLE_NAME)
-        response = table.query(
-            KeyConditionExpression=Key("genre").eq(genre)
+        # ✅ Handle cases where API Gateway sends a raw JSON object
+        body = json.loads(event["body"]) if "body" in event else event
+
+        # Extract file details
+        filename = body["filename"]
+        title = body.get("title", "")
+        genres = body.get("genres", [])  # List of genres
+        description = body.get("description", "")
+        exif = body.get("exif", "")
+
+        # ✅ Generate S3 file path
+        file_path = f"photos/{filename}"
+
+        # ✅ Generate a presigned URL for uploading
+        presigned_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": BUCKET_NAME, "Key": file_path, "ContentType": "image/jpeg"},
+            ExpiresIn=3600  # URL expires in 1 hour
         )
 
-        # ✅ Convert Decimal values to standard types
-        photos = convert_decimal(response.get("Items", []))
+        # ✅ Public URL for S3 file
+        public_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{file_path}"
 
-        # ✅ Ensure response is always a JSON-compatible list
+        # ✅ Save each genre as a separate row in DynamoDB
+        table = dynamodb.Table(DYNAMO_TABLE_NAME)
+        for genre in genres:
+            table.put_item(
+                Item={
+                    "genre": genre,  # ✅ Partition Key
+                    "s3_key": file_path,
+                    "image_url": public_url,
+                    "title": title,
+                    "description": description,
+                    "exif": exif,
+                    "timestamp": int(time.time())  # Optional for sorting
+                }
+            )
+
         return {
             "statusCode": 200,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Methods": "OPTIONS, POST",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            "body": json.dumps(photos)  # ✅ JSON-friendly response
+            "body": json.dumps({
+                "s3_key": file_path,
+                "presigned_url": presigned_url
+            })
         }
 
     except Exception as e:
@@ -63,7 +82,7 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Methods": "OPTIONS, POST",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
             "body": json.dumps({"error": str(e)})
