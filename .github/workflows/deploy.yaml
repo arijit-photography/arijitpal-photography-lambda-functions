@@ -1,0 +1,49 @@
+name: Deploy Lambda Functions to AWS
+
+on:
+  push:
+    branches:
+      - main  # Runs when changes are pushed to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt update
+          sudo apt install -y awscli
+
+      # ✅ Deploy Upload Lambda
+      - name: Package and Deploy Upload Lambda
+        run: |
+          cd upload-photos-lambda
+          mkdir -p package
+          pip install -r requirements.txt -t package/
+          cd package && zip -r ../upload-photos.zip . && cd ..
+          zip -g upload-photos.zip app.py
+          aws lambda update-function-code --function-name UploadPhotosLambda --zip-file fileb://upload-photos.zip
+
+      # ✅ Deploy List Lambda
+      - name: Package and Deploy List Lambda
+        run: |
+          cd list-photos-lambda
+          mkdir -p package
+          pip install -r requirements.txt -t package/
+          cd package && zip -r ../list-photos.zip . && cd ..
+          zip -g list-photos.zip app.py
+          aws lambda update-function-code --function-name ListPhotosLambda --zip-file fileb://list-photos.zip
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: "us-east-1"
