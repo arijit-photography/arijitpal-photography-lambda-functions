@@ -14,6 +14,18 @@ DYNAMO_TABLE_NAME = "arijitpal-photography-datastore"
 # Lambda Handler
 def lambda_handler(event, context):
     try:
+        # ✅ Handle preflight (OPTIONS) requests
+        if event["httpMethod"] == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "OPTIONS, POST",
+                    "Access-Control-Allow-Headers": "Content-Type"
+                },
+                "body": json.dumps({"message": "CORS preflight successful"})
+            }
+
         # Parse input JSON
         body = json.loads(event["body"])
         filename = body["filename"]
@@ -39,7 +51,7 @@ def lambda_handler(event, context):
         table.put_item(
             Item={
                 "s3_key": file_path,
-                "image_url": public_url,  # Store the public URL
+                "image_url": public_url,
                 "title": title,
                 "category": category,
                 "description": description,
@@ -50,11 +62,21 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "OPTIONS, POST",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
             "body": json.dumps({"s3_key": file_path, "presigned_url": presigned_url})
         }
 
     except Exception as e:
         return {
             "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "OPTIONS, POST",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
             "body": json.dumps({"error": str(e)})
         }
