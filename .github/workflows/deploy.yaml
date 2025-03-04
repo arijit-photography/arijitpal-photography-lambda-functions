@@ -39,7 +39,7 @@ jobs:
           mkdir -p package
           pip install -r requirements.txt -t package/
           cd package && zip -r ../upload-photos.zip . && cd ..
-          zip -g upload-photos.zip app.py
+          zip -g upload-photos.zip lambda_function.py
           aws lambda update-function-code --function-name UploadPhotosLambda --zip-file fileb://upload-photos.zip
 
       - name: Package and Deploy List Lambda
@@ -48,7 +48,7 @@ jobs:
           mkdir -p package
           pip install -r requirements.txt -t package/
           cd package && zip -r ../list-photos.zip . && cd ..
-          zip -g list-photos.zip app.py
+          zip -g list-photos.zip lambda_function.py
           aws lambda update-function-code --function-name ListPhotosLambda --zip-file fileb://list-photos.zip
 
     env:
