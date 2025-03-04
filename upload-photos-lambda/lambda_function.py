@@ -30,7 +30,7 @@ def lambda_handler(event, context):
         body = json.loads(event["body"])
         filename = body["filename"]
         title = body.get("title", "")
-        category = body.get("category", [])
+        genres = body.get("genres", [])
         description = body.get("description", "")
         exif = body.get("exif", "")
 
@@ -53,7 +53,7 @@ def lambda_handler(event, context):
                 "s3_key": file_path,
                 "image_url": public_url,
                 "title": title,
-                "category": category,
+                "genres": genres,
                 "description": description,
                 "exif": exif,
                 "timestamp": int(time.time())
