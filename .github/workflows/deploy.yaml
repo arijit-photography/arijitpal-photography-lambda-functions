@@ -3,7 +3,7 @@ name: Deploy Lambda Functions to AWS
 on:
   push:
     branches:
-      - main  # Runs when changes are pushed to main
+      - main
 
 jobs:
   deploy:
@@ -18,15 +18,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      # ✅ Install AWS CLI using the official method
-      - name: Install AWS CLI
+      - name: Install or Update AWS CLI
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws --version  # Verify installation
+          if aws --version; then
+            echo "AWS CLI already installed, updating..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install --update
+          else
+            echo "Installing AWS CLI..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+          fi
+          aws --version  # Verify AWS CLI installation
 
-      # ✅ Deploy Upload Lambda
       - name: Package and Deploy Upload Lambda
         run: |
           cd upload-photos-lambda
@@ -36,7 +42,6 @@ jobs:
           zip -g upload-photos.zip app.py
           aws lambda update-function-code --function-name UploadPhotosLambda --zip-file fileb://upload-photos.zip
 
-      # ✅ Deploy List Lambda
       - name: Package and Deploy List Lambda
         run: |
           cd list-photos-lambda
