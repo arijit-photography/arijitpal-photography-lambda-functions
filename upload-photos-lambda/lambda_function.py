@@ -15,7 +15,7 @@ DYNAMO_TABLE_NAME = "arijitpal-photography-datastore"
 def lambda_handler(event, context):
     try:
         # ✅ Handle preflight (OPTIONS) requests
-        if event["httpMethod"] == "OPTIONS":
+        if "httpMethod" in event and event["httpMethod"] == "OPTIONS":
             return {
                 "statusCode": 200,
                 "headers": {
@@ -26,15 +26,17 @@ def lambda_handler(event, context):
                 "body": json.dumps({"message": "CORS preflight successful"})
             }
 
-        # Parse input JSON
-        body = json.loads(event["body"])
+        # ✅ Handle cases where API Gateway sends a raw JSON object
+        body = json.loads(event["body"]) if "body" in event else event
+
+        # Extract file details
         filename = body["filename"]
         title = body.get("title", "")
-        genres = body.get("genres", [])
+        genres = body.get("genres", [])  # List of genres
         description = body.get("description", "")
         exif = body.get("exif", "")
 
-        # Unique file path inside S3
+        # ✅ Generate S3 file path
         file_path = f"photos/{filename}"
 
         # ✅ Generate a presigned URL for uploading
@@ -44,21 +46,23 @@ def lambda_handler(event, context):
             ExpiresIn=3600  # URL expires in 1 hour
         )
 
+        # ✅ Public URL for S3 file
         public_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{file_path}"
 
-        # ✅ Store metadata in DynamoDB
+        # ✅ Save each genre as a separate row in DynamoDB
         table = dynamodb.Table(DYNAMO_TABLE_NAME)
-        table.put_item(
-            Item={
-                "s3_key": file_path,
-                "image_url": public_url,
-                "title": title,
-                "genres": genres,
-                "description": description,
-                "exif": exif,
-                "timestamp": int(time.time())
-            }
-        )
+        for genre in genres:
+            table.put_item(
+                Item={
+                    "genre": genre,  # ✅ Partition Key
+                    "s3_key": file_path,
+                    "image_url": public_url,
+                    "title": title,
+                    "description": description,
+                    "exif": exif,
+                    "timestamp": int(time.time())  # Optional for sorting
+                }
+            )
 
         return {
             "statusCode": 200,
@@ -67,7 +71,10 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Methods": "OPTIONS, POST",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            "body": json.dumps({"s3_key": file_path, "presigned_url": presigned_url})
+            "body": json.dumps({
+                "s3_key": file_path,
+                "presigned_url": presigned_url
+            })
         }
 
     except Exception as e:
