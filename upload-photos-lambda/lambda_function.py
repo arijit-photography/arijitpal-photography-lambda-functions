@@ -55,9 +55,9 @@ def lambda_handler(event, context):
             table.put_item(
                 Item={
                     "genre": genre,  # ✅ Partition Key
+                    "title": title,
                     "s3_key": file_path,
                     "image_url": public_url,
-                    "title": title,
                     "description": description,
                     "exif": exif,
                     "timestamp": int(time.time())  # Optional for sorting
