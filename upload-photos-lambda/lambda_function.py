@@ -7,7 +7,7 @@ s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
 
 # Set Bucket Name & DynamoDB Table
-BUCKET_NAME = "arijitpal-photography-static-site-s3"
+BUCKET_NAME = "arijitpal-photography-s3"
 DYNAMO_TABLE_NAME = "arijitpal-photography-datastore"
 
 
