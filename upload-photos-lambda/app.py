@@ -22,12 +22,19 @@ def lambda_handler(event, context):
         description = body.get("description", "")
         exif = body.get("exif", "")
 
-        # Unique key for storage
+        # Unique file path inside S3
         file_path = f"photos/{filename}"
+
+        # ✅ Generate a presigned URL for uploading
+        presigned_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": BUCKET_NAME, "Key": file_path, "ContentType": "image/jpeg"},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
 
         public_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{file_path}"
 
-        # Store metadata in DynamoDB
+        # ✅ Store metadata in DynamoDB
         table = dynamodb.Table(DYNAMO_TABLE_NAME)
         table.put_item(
             Item={
@@ -43,7 +50,7 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"s3_key": file_path})
+            "body": json.dumps({"s3_key": file_path, "presigned_url": presigned_url})
         }
 
     except Exception as e:
