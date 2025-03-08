@@ -51,7 +51,7 @@ jobs:
           zip -g list-photos.zip lambda_function.py
           aws lambda update-function-code --function-name ListPhotosLambda --zip-file fileb://list-photos.zip
 
-      - name: Send Email Lambda
+      - name: Package and Deploy Send Email Lambda
         run: |
           cd send-email-lambda
           mkdir -p package
