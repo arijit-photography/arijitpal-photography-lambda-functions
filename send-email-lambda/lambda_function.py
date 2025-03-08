@@ -1,51 +1,70 @@
 import json
 import boto3
-import os
+import logging
 
-# Initialize AWS SES client
-ses = boto3.client("ses", region_name="us-east-1")  # Change to your AWS region
+# Enable logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-# Your email (where messages will be sent)
-RECIPIENT_EMAIL = "yourname@example.com"  # Your personal email to receive messages
+# AWS SES Client
+ses = boto3.client("ses", region_name="us-east-1")
 
+# Email Configuration
+RECIPIENT_EMAIL = "yourname@example.com"
 
 def lambda_handler(event, context):
+    logger.info("Lambda function invoked")
+
     try:
-        # Parse incoming request body
+        if event.get("httpMethod") == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                },
+                "body": json.dumps({"message": "CORS preflight successful"})
+            }
+
         body = json.loads(event["body"])
         name = body["name"]
-        sender_email = body["email"]  # The email provided by the user
+        sender_email = body["email"]
         message = body["message"]
 
-        # Construct email content
-        subject = f"New Contact Form Submission from {name}"
-        body_text = f"Name: {name}\nEmail: {sender_email}\nMessage:\n{message}"
+        logger.info(f"Received message from {name} ({sender_email})")
 
-        # Send the email using SES
+        # Send email using SES
         response = ses.send_email(
-            Source=RECIPIENT_EMAIL,  # Must be verified in SES
-            Destination={"ToAddresses": [RECIPIENT_EMAIL]},  # You receive the email
-            ReplyToAddresses=[sender_email],  # When you reply, it goes to the user
+            Source=RECIPIENT_EMAIL,
+            Destination={"ToAddresses": [RECIPIENT_EMAIL]},
+            ReplyToAddresses=[sender_email],
             Message={
-                "Subject": {"Data": subject},
-                "Body": {"Text": {"Data": body_text}}
+                "Subject": {"Data": f"New Contact Form Submission from {name}"},
+                "Body": {"Text": {"Data": message}}
             }
         )
+
+        logger.info(f"Email sent successfully: {response}")
 
         return {
             "statusCode": 200,
             "headers": {
-                "Access-Control-Allow-Origin": "*",  # Enable CORS
-                "Access-Control-Allow-Methods": "POST, OPTIONS"
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
             },
             "body": json.dumps({"message": "Email sent successfully!"})
         }
 
     except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
         return {
             "statusCode": 500,
             "headers": {
-                "Access-Control-Allow-Origin": "*"
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
             },
             "body": json.dumps({"error": str(e)})
         }
