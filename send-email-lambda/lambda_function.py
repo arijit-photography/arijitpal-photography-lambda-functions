@@ -1,6 +1,7 @@
 import json
 import boto3
 import logging
+import re
 
 # Enable logging
 logger = logging.getLogger()
@@ -10,12 +11,17 @@ logger.setLevel(logging.INFO)
 ses = boto3.client("ses", region_name="us-east-1")
 
 # Email Configuration
-RECIPIENT_EMAIL = "yourname@example.com"
+RECIPIENT_EMAIL = "yourname@example.com"  # ✅ Replace with your verified SES email
+
+# Regex to validate email format
+EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+
 
 def lambda_handler(event, context):
-    logger.info("Lambda function invoked")
+    logger.info(f"Incoming event: {event}")
 
     try:
+        # ✅ Handle CORS Preflight Request
         if event.get("httpMethod") == "OPTIONS":
             return {
                 "statusCode": 200,
@@ -27,18 +33,33 @@ def lambda_handler(event, context):
                 "body": json.dumps({"message": "CORS preflight successful"})
             }
 
-        body = json.loads(event["body"])
-        name = body["name"]
-        sender_email = body["email"]
-        message = body["message"]
+        # ✅ Ensure 'body' exists and parse it only if it's a string
+        body = event.get("body")
+        if isinstance(body, str):
+            body = json.loads(body)  # Convert JSON string to dictionary
+
+        if not isinstance(body, dict):  # Ensure body is a dictionary
+            raise ValueError("Invalid body format")
+
+        # ✅ Extract fields safely
+        name = body.get("name", "Unknown")
+        sender_email = body.get("email", "").strip()  # Remove extra spaces
+        message = body.get("message", "").strip()
+
+        if not message:
+            raise ValueError("Message field is empty")
+
+        # ✅ Validate sender email format
+        if not sender_email or not re.match(EMAIL_REGEX, sender_email):
+            raise ValueError(f"Invalid sender email: {sender_email}")
 
         logger.info(f"Received message from {name} ({sender_email})")
 
-        # Send email using SES
+        # ✅ Send email using SES
         response = ses.send_email(
             Source=RECIPIENT_EMAIL,
             Destination={"ToAddresses": [RECIPIENT_EMAIL]},
-            ReplyToAddresses=[sender_email],
+            ReplyToAddresses=[sender_email],  # ✅ Ensure valid sender email
             Message={
                 "Subject": {"Data": f"New Contact Form Submission from {name}"},
                 "Body": {"Text": {"Data": message}}
