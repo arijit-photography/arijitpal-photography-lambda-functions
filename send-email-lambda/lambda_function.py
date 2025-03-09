@@ -11,7 +11,7 @@ logger.setLevel(logging.INFO)
 ses = boto3.client("ses", region_name="us-east-1")
 
 # Email Configuration
-RECIPIENT_EMAIL = "yourname@example.com"  # ✅ Replace with your verified SES email
+RECIPIENT_EMAIL = "arijitpalphotography@gmail.com"  # ✅ Replace with your verified SES email
 
 # Regex to validate email format
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
