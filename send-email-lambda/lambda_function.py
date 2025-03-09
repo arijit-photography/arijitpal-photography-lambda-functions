@@ -42,8 +42,8 @@ def lambda_handler(event, context):
             raise ValueError("Invalid body format")
 
         # ✅ Extract fields safely
-        name = body.get("name", "Unknown")
-        sender_email = body.get("email", "").strip()  # Remove extra spaces
+        subject = body.get("subject", "No Subject")
+        sender_email = body.get("email", "").strip()
         message = body.get("message", "").strip()
 
         if not message:
@@ -53,7 +53,7 @@ def lambda_handler(event, context):
         if not sender_email or not re.match(EMAIL_REGEX, sender_email):
             raise ValueError(f"Invalid sender email: {sender_email}")
 
-        logger.info(f"Received message from {name} ({sender_email})")
+        logger.info(f"Received message with subject '{subject}' from {sender_email}")
 
         # ✅ Send email using SES
         response = ses.send_email(
@@ -61,7 +61,7 @@ def lambda_handler(event, context):
             Destination={"ToAddresses": [RECIPIENT_EMAIL]},
             ReplyToAddresses=[sender_email],  # ✅ Ensure valid sender email
             Message={
-                "Subject": {"Data": f"New Contact Form Submission from {name}"},
+                "Subject": {"Data": f"Contact Form: {subject}"},
                 "Body": {"Text": {"Data": message}}
             }
         )
